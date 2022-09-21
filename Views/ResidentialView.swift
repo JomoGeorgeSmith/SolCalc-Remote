@@ -107,7 +107,7 @@ struct ResidentialView: View {
                 
            
             HStack{
-                Text("Array Size : ")
+                Text("Solar Array Size : ")
                     .multilineTextAlignment(.leading)
                 Text(arraySize)
             }.padding()
