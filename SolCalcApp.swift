@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct SolCalcApp: App {
+   @StateObject var model = SolarDesignModel()
     var body: some Scene {
         WindowGroup {
             HomeView()
+                .environmentObject(model)
             //ResidentialView()
             //CommericalView()
         }

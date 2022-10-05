@@ -14,7 +14,7 @@ enum InstallationType: String, CaseIterable, Identifiable {
 }
 
 struct HomeView: View {
-    
+
     func pickView() -> AnyView{
         
         if(selectedInstallationType == InstallationType.Residential)
@@ -22,7 +22,7 @@ struct HomeView: View {
             return AnyView( ResidentialView() )
         }
         else{
-            return AnyView( CommericalView() )
+            return AnyView( CommericalView())
         }
         
     }

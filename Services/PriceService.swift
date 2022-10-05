@@ -12,38 +12,31 @@ import UIKit
 class PriceService
 {
     
+    let costGSWSolarPanel545watt: Double = 40000.0
+    let costSkyTrack8k:Double = 580000.0
+    let costSkyTrack6k:Double = 500000.0
+    let costXliionBattery:Double = 600000.0
     let exchangeaRateJMDtoUSD:Double = 157.8
-    
-    let costOf545WattTrinaSolarPanels: Double = 50000.0
-    
-    //Tier 1
-    let costOfInverter: Double = 500000.0
-    let costOf10kwhBattery:Double = 610000.0
-    let rosenStorageCapacity:Double = 8.0
-    
-    //Tier 2
-    let costOf3500WGrowattInverter: Double = 221900.0
-    let costOf2400WLithiumBattery : Double = 123007.5
-
-    
     let costOfAirBnBPerNight:Double = 17347.0
+    let costElectricalMaterialAndWiring = 300000.0
     
     
-    //For now we are just going for estimates will refine the class properly over time
+   public var estimate = Estimate()
     
     public func calculateEstimateForDesign(design:SolarDesign) -> Estimate
     {
-        var estimate = Estimate()
-        estimate.costOfPanels = design.numberOfPanels * costOf545WattTrinaSolarPanels
-        estimate.costOfInveter = costOfInverter
-        estimate.costOfBatteries = getNumberOfBatteries(requiredStorageCapacity: design.batteryStorage) * costOf10kwhBattery
-        estimate.costOfElectricalMaterial = 215000.0
+
+        estimate.costOfPanels = Double(design.numberOfPanels) * costGSWSolarPanel545watt
+        estimate.costOfInveter = getCostOfInverterModel(design: design) * Double(design.numberOfInverters)
+        estimate.costOfBatteries = Double(design.numberOfBatteries) * costXliionBattery
+        estimate.costOfElectricalMaterial = costElectricalMaterialAndWiring
         estimate.costOfRacking = getRailingEstimate(arraySize: design.solarArraySize)
         
         if(design.parish.id.rawValue != "Kingston")
         {
             estimate.costOfAirBnB = (90.0 * exchangeaRateJMDtoUSD) * 3
             estimate.costOfTransportation = 65000.0
+
         }
         
         else{
@@ -51,28 +44,25 @@ class PriceService
             estimate.costOfTransportation = 20000.0
         }
         
-        estimate.costOfManagementAndDesign = 350000
-        
+        estimate.costOfContractors = ( 0.1 * (estimate.costOfElectricalMaterial + estimate.costOfBatteries
+                                            + estimate.costOfInveter + estimate.costOfPanels + estimate.costOfElectricalMaterial + estimate.costOfRacking) ) + estimate.costOfAirBnB
+
+        estimate.costOfManagementAndDesign = ( 0.1  *   (estimate.costOfElectricalMaterial + estimate.costOfBatteries
+                                                     + estimate.costOfInveter + estimate.costOfPanels + estimate.costOfElectricalMaterial +  estimate.costOfRacking) )
+    
         
         estimate.totalEstimate =  estimate.costOfPanels + estimate.costOfInveter
         + estimate.costOfBatteries +  estimate.costOfElectricalMaterial
-        + estimate.costOfAirBnB +  estimate.costOfTransportation
+        + estimate.costOfTransportation
         + estimate.costOfManagementAndDesign
         + estimate.costOfRacking
+        + estimate.costOfContractors
         
         return estimate
     }
     
-    private func getNumberOfBatteries(requiredStorageCapacity: Double) -> Double
-    {
-        var numberOfBatteries = requiredStorageCapacity/rosenStorageCapacity
-        
-        return numberOfBatteries.rounded()
-        
-    }
-    
 
-    //Racking is 0.10 US Dollars per watt. Im using 0.15 to include shipping and transporatation
+    //Racking is 0.10 US Dollars per watt. I'm using 0.15 to include shipping and transporatation.
     private func getRailingEstimate(arraySize:Double)-> Double
     {
         let costPerWatt = 0.15 * exchangeaRateJMDtoUSD
@@ -82,10 +72,20 @@ class PriceService
         
         return solarArrayInWatts * costPerWatt
     }
-
+    
+    private func getCostOfInverterModel(design: SolarDesign)-> Double{
+        
+        if(design.inverterModel == design.skytrak6k)
+        {
+            return costSkyTrack6k * Double(design.numberOfInverters)
+        }
+        else{
+            return costSkyTrack8k * Double(design.numberOfInverters)
+        }
+    }
 }
 
-struct Estimate {
+ struct Estimate {
     
     var costOfPanels: Double = 0.0
     var costOfInveter: Double = 0.0
@@ -96,7 +96,9 @@ struct Estimate {
     var costOfRacking: Double = 0.0
     var costOfTransportation:Double = 0.0
     var costOfAirBnB:Double = 0.0
+    var costOfContractors:Double = 0.0
     var totalEstimate:Double = 0.0
+    
     
 }
 

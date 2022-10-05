@@ -8,35 +8,58 @@
 import Foundation
 import Accessibility
 
-class SolarDesign: Identifiable {
+class SolarDesign: ObservableObject {
     
-    var id:UUID?
-    var kwhPerDay:Double
-    var numberOfPanels:Double
-    var solarArraySize:Double
-    var inverterSize: Double
-    var batteryStorage: Double
-    var commercial:Bool
-    var parish: SolarUtilities.Parish
+    var priceModel = PriceService()
     
-    //replace these with services to get up to date info
-    //furthermore residential vs comerical will need differnt panels & storage calculations
+    var client = Client()
+    
+    @Published var id:UUID?
+    @Published var kwhPerDay:Double
+    @Published var numberOfPanels:Int
+    @Published var brandOfPanels : String
+    @Published var solarArraySize:Double
+    @Published var inverterSize: Double
+    @Published var batteryStorage: Double
+    @Published var commercial:Bool
+    @Published var parish: SolarUtilities.Parish
+    @Published var estimatedCost :Double
+    @Published var estimatedCostFormatted :String?
+    @Published var numberOfInverters: Int
+    @Published var inverterModel : String
+    @Published var inverterUnitPrice : Double
+    @Published var solarPanelUnitPrice : Double
+    @Published var numberOfBatteries: Int
+    @Published var batteryModel : String
+    
+    
     let costPerkwh:Double = 61.40
     let solarPanelWattRating:Double = 545
     let peakSunHours = 4.6
     let daysInAMonthOnAverage = 30.0
     
-    // need a variable for commerical that says, days operational in the week
-    // then to get the kWh per day I divide it by that.
+    public var skytrak6k = "Skytrak 6k Hybrid Inverter"
+    public var  skytrak8k = "Skytrak 8k Hybrid Inverter"
+    public var xliion = "x-lion Lithium Battery"
+    public var GSW545 = "545 Watt Solar Panels"
     
     init(){
+        
             self.kwhPerDay = 0.0
             self.solarArraySize = 0.0
-            self.numberOfPanels = 0.0
+            self.numberOfPanels = 0
+            self.brandOfPanels = ""
             self.inverterSize = 0.0
             self.batteryStorage = 0.0
             self.commercial = false
             self.parish = SolarUtilities.Parish.Kingston
+            self.estimatedCost = 0.0
+            self.numberOfInverters = 0
+            self.numberOfBatteries = 0
+            self.inverterModel = ""
+            self.inverterUnitPrice = 0.0
+            self.solarPanelUnitPrice = 0.0
+            self.batteryModel = ""
     
         }
     
@@ -44,23 +67,40 @@ class SolarDesign: Identifiable {
         
         self.kwhPerDay = 0.0
         self.solarArraySize = 0.0
-        self.numberOfPanels = 0.0
+        self.numberOfPanels = 0
+        self.brandOfPanels = ""
         self.inverterSize = 0.0
         self.batteryStorage = 0.0
         self.commercial = false
         self.parish = SolarUtilities.Parish.Kingston
+        self.estimatedCost = 0.0
+        self.numberOfInverters = 0
+        self.numberOfBatteries = 0
+        self.inverterModel = ""
+        self.batteryModel = ""
+        self.inverterUnitPrice = 0.0
+        self.solarPanelUnitPrice = 0.0
         designResidentialSystem(jpsMonthlyBill: jpsMonthlyBill)
+
     }
     
     init(jpsMonthlyBill:Double ,openingTime:String, closingTime:String, daysOfWeekOpen:Double){
         
         self.kwhPerDay = 0.0
         self.solarArraySize = 0.0
-        self.numberOfPanels = 0.0
+        self.numberOfPanels = 0
+        self.brandOfPanels = ""
         self.inverterSize = 0.0
         self.batteryStorage = 0.0
         self.commercial = true
         self.parish = SolarUtilities.Parish.Kingston
+        self.estimatedCost = 0.0
+        self.numberOfInverters = 0
+        self.numberOfBatteries = 0
+        self.inverterModel = ""
+        self.batteryModel = ""
+        self.inverterUnitPrice = 0.0
+        self.solarPanelUnitPrice = 0.0
         designCommercialSolarSystem(jpsMonthlyBill: jpsMonthlyBill, openingTime: openingTime, closingTime: closingTime, daysOfWeekOpen: daysOfWeekOpen)
         
     }
@@ -84,12 +124,18 @@ class SolarDesign: Identifiable {
         return round(size * 10)/10 
     }
     
+    private func calculateNumberOfSolarPanelsRequired(solarArraySize: Double) -> Int{
+        
+        let number = Int((round((solarArraySize * 1000/(solarPanelWattRating) *  10))/10).rounded(.up))
+        self.brandOfPanels = GSW545;
+        if (number % 2 != 0 ){
+        return number + 1
+        }
+        else{
+        return number
+        }
     
-    private func calculateNumberOfSolarPanelsRequired(solarArraySize: Double) -> Double{
-        //return ceil(solarArraySize/(solarPanelWattRating))
-        return (round((solarArraySize * 1000/(solarPanelWattRating) *  10))/10).rounded(.up)
     }
-    
     
     private func calculateInverterSize(solarArraySize : Double) -> Double{
     
@@ -112,8 +158,9 @@ class SolarDesign: Identifiable {
         
         let closingTimeParsed = timeConversion12(time24: closingTime)
         
+        
         let _openingTime = formatter.date(from: openingTime)!
-        //let _closingTime = formatter.date(from: closingTime)!
+
         let _closingTime = formatter.date(from: closingTimeParsed)!
         
         let useableSunLightStart = formatter.date(from: "8:00AM")!
@@ -140,8 +187,6 @@ class SolarDesign: Identifiable {
         
     }
     
-
-    
     func timeConversion12(time24: String) -> String {
         let dateAsString = time24.replacingOccurrences(of: "[PM]", with: "", options: [.regularExpression, .caseInsensitive]).trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -165,19 +210,14 @@ class SolarDesign: Identifiable {
         let convertedClosingTime = timeConversion12(time24: closingTime)
 
         let _openingTime = formatter.date(from: openingTime)!
-        //let _closingTime = formatter.date(from: closingTime)!
         let _closingTime = formatter.date(from: convertedClosingTime)!
         
         let operationalHours = floor(
             _closingTime.timeIntervalSince(_openingTime) / 60 / 60 )
-        
-//Case where operational hours are negative. switch the variables
 
         return operationalHours
     }
 
-    
-    
     private func calculateLithiumBatteryStorageCapacityCommercial(openingTime:String, closingTime:String, kwhPerDay:Double)-> Double{
 
         let requiredStorageHours = calculateRequiredBatteryStorageHoursForBusiness(openingTime: openingTime, closingTime: closingTime)
@@ -187,9 +227,6 @@ class SolarDesign: Identifiable {
         calculateTotalOperationalHours(openingTime: openingTime,
                                        closingTime: closingTime)
         
-        //represent requiredStorageHours as a percentage of total operational hours, then
-        //multiply that percentage by total kwh used per day
-        
         let storageCapacityPerDay = (requiredStorageHours/operationalHours) * kwhPerDay
         return round(storageCapacityPerDay * 10)/10
         
@@ -198,12 +235,20 @@ class SolarDesign: Identifiable {
     
     public func designCommercialSolarSystem(jpsMonthlyBill: Double,openingTime:String, closingTime:String, daysOfWeekOpen:Double)
     {
+        
         self.commercial = true
         self.kwhPerDay = getkwhUsedPerDayCommerical(monthlyLightBill: jpsMonthlyBill, daysOfTheWeekOpen: daysOfWeekOpen)
         self.solarArraySize = calculateSizeOfSolarArray(kwhPerDay: self.kwhPerDay)
         self.numberOfPanels = calculateNumberOfSolarPanelsRequired(solarArraySize: self.solarArraySize)
         self.inverterSize = calculateInverterSize(solarArraySize: self.solarArraySize)
-        self.batteryStorage = calculateLithiumBatteryStorageCapacityCommercial(openingTime: openingTime, closingTime: closingTime, kwhPerDay: self.kwhPerDay)
+        self.batteryStorage = calculateLithiumBatteryStorageCapacityResidential()
+        //self.batteryStorage = calculateRequiredBatteryStorageHoursForBusiness(openingTime: openingTime, closingTime: closingTime)
+        self.parish = parish.id
+        self.numberOfInverters = selectInverterResidential(solarArraySize: self.solarArraySize)
+        self.numberOfBatteries = selectNumberOfBatteries(storageRequired: self.batteryStorage)
+        self.estimatedCost =  priceModel.calculateEstimateForDesign(design: self).totalEstimate
+        self.estimatedCostFormatted = convertDoubleToCurrency( amount: self.estimatedCost)
+        
     }
     
     public func designResidentialSystem(jpsMonthlyBill: Double)
@@ -214,9 +259,11 @@ class SolarDesign: Identifiable {
         self.numberOfPanels = calculateNumberOfSolarPanelsRequired(solarArraySize: self.solarArraySize)
         self.inverterSize = calculateInverterSize(solarArraySize: self.solarArraySize)
         self.batteryStorage = calculateLithiumBatteryStorageCapacityResidential()
-        
+        self.numberOfInverters = selectInverterResidential(solarArraySize: self.solarArraySize)
+        self.numberOfBatteries = selectNumberOfBatteries(storageRequired: self.batteryStorage)
+        self.estimatedCost =  priceModel.calculateEstimateForDesign(design: self).totalEstimate
+        self.estimatedCostFormatted = convertDoubleToCurrency( amount: self.estimatedCost)
     }
-    
     
     public func designResidentialSystem(jpsMonthlyBill: Double , parish:SolarUtilities.Parish)
     {
@@ -227,24 +274,62 @@ class SolarDesign: Identifiable {
         self.inverterSize = calculateInverterSize(solarArraySize: self.solarArraySize)
         self.batteryStorage = calculateLithiumBatteryStorageCapacityResidential()
         self.parish = parish.id
-        
+        self.numberOfInverters = selectInverterResidential(solarArraySize: self.solarArraySize)
+        self.numberOfBatteries = selectNumberOfBatteries(storageRequired: self.batteryStorage)
+        self.estimatedCost =  priceModel.calculateEstimateForDesign(design: self).totalEstimate
+        self.estimatedCostFormatted = convertDoubleToCurrency( amount: self.estimatedCost)
     }
     
-    
-    
-    
-    //No Battery Option
-    //Cut By A Percentage
-    //Number Of Batteries
-    //Bill after installation
-    //ROI
-    //Value Im saving each year/month
-    //Need a function to account for netbilling.
-    //Talk to JPS about a netbilling tariff API
+    public func designResidentialSystem(jpsMonthlyBill: Double , fullName: String, parish:SolarUtilities.Parish)
+    {
+        self.commercial = false
+        self.kwhPerDay = getkwhUsedPerDay(monthlyLightBillPayment: jpsMonthlyBill)
+        self.solarArraySize = calculateSizeOfSolarArray(kwhPerDay: self.kwhPerDay)
+        self.numberOfPanels = calculateNumberOfSolarPanelsRequired(solarArraySize: self.solarArraySize)
+        self.inverterSize = calculateInverterSize(solarArraySize: self.solarArraySize)
+        self.batteryStorage = calculateLithiumBatteryStorageCapacityResidential()
+        self.parish = parish.id
+        self.numberOfInverters = selectInverterResidential(solarArraySize: self.solarArraySize)
+        self.numberOfBatteries = selectNumberOfBatteries(storageRequired: self.batteryStorage)
+        self.estimatedCost =  priceModel.calculateEstimateForDesign(design: self).totalEstimate
+        self.estimatedCostFormatted = convertDoubleToCurrency( amount: self.estimatedCost)
+        self.client.fullName = fullName
 
-    //Design system based on a percentage cut
-    //Generate Invoice from app , send to email or watts app
-    //Add client details
-
-
+    }
+    
+    private func convertDoubleToCurrency(amount: Double) -> String {
+         let numberFormatter = NumberFormatter()
+         numberFormatter.numberStyle = .currency
+         numberFormatter.locale = Locale.current
+         return numberFormatter.string(from: NSNumber(value: amount))!
+     }
+    
+    private func selectInverterResidential(solarArraySize: Double) -> Int
+    {
+        if(self.solarArraySize == 0){
+            return 0
+        }
+        
+        if(self.solarArraySize < 4 ) {
+            self.inverterModel = skytrak6k
+            self.inverterUnitPrice = priceModel.costSkyTrack6k
+            return Int(ceil(solarArraySize/6).rounded(.up))
+        }
+        
+        else{
+            self.inverterModel = skytrak8k
+            self.inverterUnitPrice = priceModel.costSkyTrack8k
+            return Int(ceil(solarArraySize/8).rounded(.up))
+        }
+    }
+    
+    private func selectNumberOfBatteries(storageRequired:Double)-> Int{
+        if(self.batteryStorage == 0){
+            return 0
+        }
+        else {
+            self.batteryModel = xliion
+            return Int(round(batteryStorage/8).rounded(.up))
+        }
+    }
 }
