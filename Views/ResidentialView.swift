@@ -18,7 +18,7 @@ struct ResidentialView: View {
     
     
     @State private var parish:  SolarUtilities.Parish = SolarUtilities.Parish.Kingston
-    
+
     
     @ObservedObject private var viewModel: CreateClientViewModel
     
@@ -57,11 +57,13 @@ struct ResidentialView: View {
     }
     
     func goto () -> AnyView{
-        
+    
         calculate()
-        
         return AnyView(SolarDesignView())
     }
+
+    
+    
     
     var body: some View {
         
@@ -79,6 +81,7 @@ struct ResidentialView: View {
                     Section{
                         
                         TextField("Client Name", text: $viewModel.clientName)
+                           
                         
                         TextField("Monthly Bill", text: $viewModel.monthlyBill).keyboardType(/*@START_MENU_TOKEN@*/.decimalPad/*@END_MENU_TOKEN@*/)
                         
@@ -92,6 +95,8 @@ struct ResidentialView: View {
                         
                     }
                 }.padding(.all).frame(height: 400)
+                    .onAppear(perform: UIApplication.shared.addTapGestureRecognizer)
+                    
                 
                 
                 NavigationLink(destination: goto()) {
@@ -104,6 +109,7 @@ struct ResidentialView: View {
                     .frame(maxWidth: .infinity)
                     .opacity(buttonOpacity)
                     .disabled(!viewModel.formIsValid)
+                
             }
         }
         .padding(.all)
@@ -112,10 +118,32 @@ struct ResidentialView: View {
 
 
 
+
+
+
 struct ResidentialView_Previews: PreviewProvider {
     static var previews: some View {
         ResidentialView()
             .previewInterfaceOrientation(.portraitUpsideDown).environmentObject(SolarDesignModel())
         
+    }
+}
+
+
+
+extension UIApplication {
+    func addTapGestureRecognizer() {
+        guard let window = windows.first else { return }
+        let tapGesture = UITapGestureRecognizer(target: window, action: #selector(UIView.endEditing))
+        tapGesture.requiresExclusiveTouchType = false
+        tapGesture.cancelsTouchesInView = false
+        tapGesture.delegate = self
+        window.addGestureRecognizer(tapGesture)
+    }
+}
+
+extension UIApplication: UIGestureRecognizerDelegate {
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true // set to `false` if you don't want to detect tap during other gestures
     }
 }
